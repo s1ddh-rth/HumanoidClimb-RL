@@ -1,0 +1,13 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+
+.idea
+*.pyc
+
+/models
+logs/
+videos/
+wandb/
+isaac_gym/.vscode/
+.vscode/
