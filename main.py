@@ -13,7 +13,7 @@ import humanoid_climb.stances as stances
 
 
 stances.set_root_path("./humanoid_climb")
-stance = stances.STANCE_1
+stance = stances.STANCE_4
 
 
 # env = gym.make('TorsoClimb-v0', render_mode='human', max_ep_steps=600, reward=Reward.NEGATIVE_DIST, motion_path=MOTION, state_file=STATEFILE)

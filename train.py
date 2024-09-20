@@ -24,6 +24,14 @@ import pendulum_climb
 import torso_climb
 import humanoid_climb
 
+import torch
+
+# Set up CUDA device
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+print(f"Using device: {DEVICE}")
+
+
 # Create directories to hold models and logs
 model_dir = "models"
 log_dir = "logs"
@@ -92,12 +100,12 @@ def train(env_name, sb3_algo, workers, path_to_model=None):
 
 	if sb3_algo == 'PPO':
 		if path_to_model is None:
-			model = sb.PPO('MlpPolicy', vec_env, verbose=1, device='cuda', tensorboard_log=log_dir)
+			model = sb.PPO('MlpPolicy', vec_env, verbose=1, device=DEVICE, tensorboard_log=log_dir, batch_size=1024)
 		else:
 			model = sb.PPO.load(path_to_model, env=vec_env)
 	elif sb3_algo == 'SAC':
 		if path_to_model is None:
-			model = sb.SAC('MlpPolicy', vec_env, verbose=1, device='cuda', tensorboard_log=log_dir)
+			model = sb.SAC('MlpPolicy', vec_env, verbose=1, device=DEVICE, tensorboard_log=log_dir)
 		else:
 			model = sb.SAC.load(path_to_model, env=vec_env)
 	else:

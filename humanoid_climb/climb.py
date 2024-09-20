@@ -10,9 +10,7 @@ import humanoid_climb.stances as stances
 from stable_baselines3 import PPO, SAC
 
 stances.set_root_path("./")
-STANCES = [stances.STANCE_1, stances.STANCE_2, stances.STANCE_3, stances.STANCE_4, stances.STANCE_5, stances.STANCE_6,
-           stances.STANCE_7, stances.STANCE_8, stances.STANCE_9, stances.STANCE_10, stances.STANCE_11_3, stances.STANCE_12,
-           stances.STANCE_13_2, stances.STANCE_14]
+STANCES = [stances.STANCE_1, stances.STANCE_2, stances.STANCE_3, stances.STANCE_4]
 
 MOTION = [s.stance for s in STANCES]
 EXCLUDE = [s.exclude_targets for s in STANCES]
@@ -32,18 +30,7 @@ STANCE_TOLERANCE = 700
 ROOT = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = ["/models/1_10_9_n_n.zip",
               "/models/2_10_9_2_n.zip",
-              "/models/3_10_9_2_1.zip",
-              "/models/4_10_13_2_1.zip",
-              "/models/5_10_13_2_5.zip",
-              "/models/6_13_13_n_5.zip",
-              "/models/7_13_13_6_5.zip",
-              "/models/8_14_13_6_5.zip",
-              "/models/9_14_17_6_5.zip",
-              "/models/10_14_17_n_9.zip",
-              "/models/11_14_17_10_9.zip",
-              "/models/12_18_17_10_9.zip",
-              "/models/13_18_20_10_9.zip",
-              "/models/14_20_20_10_9.zip"]
+              "/models/3_10_9_2_1.zip"]
 
 
 MODELS = [PPO.load(ROOT+MODEL_PATH[i], env=env) for i in range(len(MODEL_PATH))]
