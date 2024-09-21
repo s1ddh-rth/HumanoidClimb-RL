@@ -92,7 +92,7 @@ class HumanoidClimbEnv(gym.Env):
         info = self._get_info()
 
         # reward = self.calculate_reward_eq1()
-        reward = self.calculate_reward_negative_distance()
+        reward = self.calculate_improved_reward()
         reached = self.check_reached_stance()
 
         terminated = self.terminate_check()
