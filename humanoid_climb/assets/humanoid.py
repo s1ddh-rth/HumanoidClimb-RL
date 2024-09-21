@@ -29,15 +29,16 @@ class Humanoid:
         (self.parts, self.joints, self.ordered_joints, self.robot_body) = addToScene(bullet_client, [self.robot])
 
         self.motor_names = ["abdomen_z", "abdomen_y", "abdomen_x"]
-        self.motor_power = [100, 100, 100]
+        self.motor_power = [100, 300, 300]  # Increased abdomen_y and abdomen_x
         self.motor_names += ["right_hip_x", "right_hip_z", "right_hip_y", "right_knee"]
-        self.motor_power += [100, 100, 300, 200]
+        self.motor_power += [100, 100, 600, 400]  # Increased right_hip_y and right_knee
         self.motor_names += ["left_hip_x", "left_hip_z", "left_hip_y", "left_knee"]
-        self.motor_power += [100, 100, 300, 200]
+        self.motor_power += [100, 100, 600, 400]  # Increased left_hip_y and left_knee
         self.motor_names += ["right_shoulder1", "right_shoulder2", "right_elbow"]
-        self.motor_power += [75, 75, 75]
+        self.motor_power += [150, 150, 75]  # Increased shoulder powers
         self.motor_names += ["left_shoulder1", "left_shoulder2", "left_elbow"]
-        self.motor_power += [75, 75, 75]
+        self.motor_power += [150, 150, 75]  # Increased shoulder powers
+
         self.motors = [self.joints[n] for n in self.motor_names]
 
         self.LEFT_HAND = self.parts["left_hand"]

@@ -50,6 +50,12 @@ class HumanoidClimbEnv(gym.Env):
                                            cameraTargetPosition=[0, 0, 3])
         self._p.setGravity(0, 0, -9.8)
         self._p.setPhysicsEngineParameter(fixedTimeStep=1.0 / 240., numSubSteps=10)
+        # # Add X axis (red)
+        # self._p.addUserDebugLine([0, 0, 0], [1, 0, 0], [1, 0, 0], 2)
+        # # Add Y axis (green)
+        # self._p.addUserDebugLine([0, 0, 0], [0, 1, 0], [0, 1, 0], 2)
+        # # Add Z axis (blue)
+        # self._p.addUserDebugLine([0, 0, 0], [0, 0, 1], [0, 0, 1], 2)
 
         self.floor = self._p.loadURDF("plane.urdf")
         self.wall = Wall(self._p, pos=[0.48, 0, 2]).id
@@ -136,7 +142,7 @@ class HumanoidClimbEnv(gym.Env):
 
         # Vertical velocity reward
         torso_velocity = self.climber.speed()[2]  # considering Vertical component only
-        reward += max(0, torso_velocity) * 2  # Positive reward for upward movement
+        reward += max(0, torso_velocity) * 4  # Positive reward for upward movement
 
         # Base stance reward (slouching)
         torso_orientation = self.climber.get_orientation()

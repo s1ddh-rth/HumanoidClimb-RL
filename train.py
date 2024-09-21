@@ -190,7 +190,7 @@ if __name__ == '__main__':
 	if args.test:
 		if os.path.isfile(args.test):
 			stances.set_root_path("./humanoid_climb")
-			stance = stances.STANCE_14_1
+			stance = stances.STANCE_4
 			max_steps = 600
 
 			env = gym.make(args.gymenv, render_mode='human', max_ep_steps=max_steps, **stance.get_args())
