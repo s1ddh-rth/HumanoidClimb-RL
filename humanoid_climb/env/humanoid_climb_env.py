@@ -129,6 +129,30 @@ class HumanoidClimbEnv(gym.Env):
         # self.visualise_reward(reward, -6, 0)
 
         return reward
+    def calculate_improved_reward(self):
+        # Base reward from negative distance
+        current_dist_away = self.get_distance_from_desired_stance()
+        reward = np.clip(-1 * np.sum(current_dist_away), -2, float('inf'))
+
+        # Vertical velocity reward
+        torso_velocity = self.climber.speed()[2]  # considering Vertical component only
+        reward += max(0, torso_velocity) * 2  # Positive reward for upward movement
+
+        # Base stance reward (slouching)
+        torso_orientation = self.climber.get_orientation()
+        slouch_angle = torso_orientation[1]  # pitch angle
+        target_slouch = -np.pi/6  # Negative angle for backward lean
+
+        # reward += max(0, np.pi/6 - abs(slouch_angle)) * 0.5  # Reward for maintaining slight slouch
+        reward += max(0, abs(target_slouch) - abs(slouch_angle - target_slouch)) * 0.5
+
+        if not self.is_on_floor():
+            reward += 0.1
+
+        if self.is_on_floor():
+            reward -= 5
+
+        return reward
 
     def calculate_reward_eq1(self):
         # Tuning params
