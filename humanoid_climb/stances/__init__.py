@@ -25,13 +25,13 @@ STANCE_3 = Stance(stance=[10, 9, 2, 1],
                   state_file="/states/state_10_9_2_n.npz",
                   action_override=[1, 1, 1, -1],
                   exclude_targets=[[], [], [], []])
-STANCE_4 = Stance(stance=[18, 18, -1, -1],
+STANCE_4 = Stance(stance=[14, 13, -1, -1],
                   previous_stance=[10, 9, 2, 1],
                   state_file="/states/state_10_9_2_1.npz",
                   action_override=[-1, -1, -1, -1],
-                  exclude_targets=[[10], [9], [2], [1]])
-STANCE_5 = Stance(stance=[18, 18, 10, 9],
-                  previous_stance=[18, 18, -1, -1],
+                  exclude_targets=[[10], [9], [2, 6], [1, 5]])
+STANCE_5 = Stance(stance=[14, 13, 6, -1],
+                  previous_stance=[14, 13, -1, -1],
                   state_file="/states/state_18_18_n_n.npz",
                   action_override=[1, 1, -1, -1],
                   exclude_targets=[[], [], [], []])
@@ -132,7 +132,7 @@ _STANCES_.append(STANCE_1)
 _STANCES_.append(STANCE_2)
 _STANCES_.append(STANCE_3)
 _STANCES_.append(STANCE_4)
-_STANCES_.append(STANCE_5)
+# _STANCES_.append(STANCE_5)
 # _STANCES_.append(STANCE_6)
 # _STANCES_.append(STANCE_7)
 # _STANCES_.append(STANCE_8)
