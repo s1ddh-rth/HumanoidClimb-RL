@@ -141,11 +141,11 @@ class HumanoidClimbEnv(gym.Env):
         reward = np.clip(-1 * np.sum(current_dist_away), -2, float('inf'))
 
         # Vertical velocity reward
-        torso_velocity = self.climber.speed()[2]  # considering Vertical component only
+        torso_velocity = self.robot.speed()[2]  # considering Vertical component only
         reward += max(0, torso_velocity) * 4  # Positive reward for upward movement
 
         # Base stance reward (slouching)
-        torso_orientation = self.climber.get_orientation()
+        torso_orientation = self.robot.get_orientation()
         slouch_angle = torso_orientation[1]  # pitch angle
         target_slouch = -np.pi/6  # Negative angle for backward lean
 
