@@ -170,17 +170,19 @@ class HumanoidClimbEnv(gym.Env):
         self.last_floor_reward = floor_reward
         self.last_total_reward = total_reward
 
+        self.last_reward_components = {
+            "distance_reward": distance_reward,
+            "velocity_reward": velocity_reward,
+            "slouch_reward": slouch_reward,
+            "wall_penalty": wall_penalty,
+            "floor_reward": floor_reward,
+            "total_reward": total_reward
+        }
         return total_reward
     
-    def get_reward_components(self):
-        return {
-            "distance_reward": self.last_distance_reward,
-            "velocity_reward": self.last_velocity_reward,
-            "slouch_reward": self.last_slouch_reward,
-            "wall_penalty": self.last_wall_penalty,
-            "floor_reward": self.last_floor_reward,
-            "total_reward": self.last_total_reward
-        }
+    def last_reward_components(self):
+        return self.last_reward_components
+    
 
 
     def get_wall_impact_force(self):
