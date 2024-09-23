@@ -43,14 +43,39 @@ class CustomCallback(BaseCallback):
 	def __init__(self, verbose: int = 0):
 		super().__init__(verbose)
 		self.rollout_count = 0
+		self.reward_components = {
+            "distance_reward": [],
+            "velocity_reward": [],
+            "slouch_reward": [],
+            "wall_penalty": [],
+            "floor_reward": [],
+            "total_reward": []
+        }
 
 	def _on_step(self) -> bool:
 		return True
 
 	def _on_rollout_end(self) -> None:
 		self.rollout_count += 1
-		_steps_till_success = []
-		_success = []
+
+		# Collect reward components from all environments
+		reward_infos = self.training_env.get_attr('last_reward_components')
+
+		# Aggregate reward components
+		for reward_info in reward_infos:
+			for key, value in reward_info.items():
+				self.reward_components[key].append(value)
+
+		# Calculate average reward components
+		avg_rewards = {k: sum(v) / len(v) for k, v in self.reward_components.items() if v}
+
+		# Log to wandb
+		self.logger.record("climb/rollout_count", self.rollout_count)
+		for key, value in avg_rewards.items():
+			self.logger.record(f"climb/{key}", value)
+
+		# Reset reward components
+		self.reward_components = {k: [] for k in self.reward_components}
 
 		# for entry in self.model.ep_info_buffer:
 		# 	_success.append(entry['is_success'])
@@ -58,7 +83,6 @@ class CustomCallback(BaseCallback):
 		# success_rate = np.mean(_success) if len(_success) > 0 else None
 		#
 		# self.logger.record("climb/success_rate", success_rate)
-		self.logger.record("climb/rollout_count", self.rollout_count)
 
 
 def make_env(env_id: str, rank: int, seed: int = 0, max_steps: int = 1000, stance: stances.Stance = stances.STANCE_NONE) -> gym.Env:
@@ -100,7 +124,7 @@ def train(env_name, sb3_algo, workers, path_to_model=None):
 
 	if sb3_algo == 'PPO':
 		if path_to_model is None:
-			model = sb.PPO('MlpPolicy', vec_env, verbose=1, device=DEVICE, tensorboard_log=log_dir, batch_size=1024)
+			model = sb.PPO('MlpPolicy', vec_env, verbose=1, device=DEVICE, tensorboard_log=log_dir, batch_size=1024, ent_coef=0.01, learning_rate=1e-4, n_steps=4096)
 		else:
 			model = sb.PPO.load(path_to_model, env=vec_env)
 	elif sb3_algo == 'SAC':

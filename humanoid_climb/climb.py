@@ -31,7 +31,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = ["/models/1_10_9_n_n.zip",
               "/models/2_10_9_2_n.zip",
               "/models/3_10_9_2_1.zip",
-              "/models/4_14_13_n_n.zip"]
+              "/models/4_14_13_n_n_new.zip"]
 
 
 MODELS = [PPO.load(ROOT+MODEL_PATH[i], env=env) for i in range(len(MODEL_PATH))]

@@ -4,6 +4,7 @@ import numpy as np
 import math
 import pybullet as p
 import pybullet_data
+import time
 
 from typing import Optional, List
 from pybullet_utils.bullet_client import BulletClient
@@ -42,6 +43,8 @@ class HumanoidClimbEnv(gym.Env):
         self.desired_stance = []
         self.desired_stance_index = 0
         self.best_dist_to_stance = []
+        self.last_reward_components = {}
+        self.last_print_time = time.time()
 
         # configure pybullet GUI
         self._p.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -138,11 +141,11 @@ class HumanoidClimbEnv(gym.Env):
     def calculate_improved_reward(self):
         # Base reward from negative distance
         current_dist_away = self.get_distance_from_desired_stance()
-        reward = np.clip(-1 * np.sum(current_dist_away), -2, float('inf'))
+        distance_reward = np.clip(-1 * np.sum(current_dist_away), -2, float('inf'))
 
         # Vertical velocity reward
         torso_velocity = self.robot.speed()[2]  # considering Vertical component only
-        reward += max(0, torso_velocity) * 4  # Positive reward for upward movement
+        velocity_reward = max(0, torso_velocity) * 4  # Positive reward for upward movement
 
         # Base stance reward (slouching)
         torso_orientation = self.robot.get_orientation()
@@ -150,15 +153,59 @@ class HumanoidClimbEnv(gym.Env):
         target_slouch = -np.pi/6  # Negative angle for backward lean
 
         # reward += max(0, np.pi/6 - abs(slouch_angle)) * 0.5  # Reward for maintaining slight slouch
-        reward += max(0, abs(target_slouch) - abs(slouch_angle - target_slouch)) * 0.5
+        slouch_reward = max(0, abs(target_slouch) - abs(slouch_angle - target_slouch)) * 0.5
 
-        if not self.is_on_floor():
-            reward += 0.1
+        # Penalty for hitting the wall too hard
+        wall_impact = self.get_wall_impact_force()
+        wall_penalty = (wall_impact) * 0.1  # Adjust threshold and scaling as needed
 
-        if self.is_on_floor():
-            reward -= 5
+        floor_reward = 0.1 if not self.is_on_floor() else -5
 
-        return reward
+        total_reward = distance_reward + velocity_reward + slouch_reward - wall_penalty + floor_reward
+
+        self.last_distance_reward = distance_reward
+        self.last_velocity_reward = velocity_reward
+        self.last_slouch_reward = slouch_reward
+        self.last_wall_penalty = wall_penalty
+        self.last_floor_reward = floor_reward
+        self.last_total_reward = total_reward
+
+        current_time = time.time()
+        if current_time - self.last_print_time >= 10:
+            print(f"Rewards after {current_time - self.last_print_time:.2f} seconds:")
+            print(f"Distance Reward: {distance_reward:.2f}")
+            print(f"Velocity Reward: {velocity_reward:.2f}")
+            print(f"Slouch Reward: {slouch_reward:.2f}")
+            print(f"Wall Penalty: {wall_penalty:.2f}")
+            print(f"Floor Reward: {floor_reward:.2f}")
+            print(f"Total Reward: {total_reward:.2f}")
+            print("--------------------")
+            self.last_print_time = current_time
+
+        return total_reward
+    
+    def get_reward_components(self):
+        return {
+            "distance_reward": self.last_distance_reward,
+            "velocity_reward": self.last_velocity_reward,
+            "slouch_reward": self.last_slouch_reward,
+            "wall_penalty": self.last_wall_penalty,
+            "floor_reward": self.last_floor_reward,
+            "total_reward": self.last_total_reward
+        }
+
+
+    def get_wall_impact_force(self):
+        contact_points = self._p.getContactPoints(bodyA=self.robot.robot, bodyB=self.wall)
+        high_impact_force = 0
+        impact_threshold = 50  # Adjust this value based on testing
+
+        for contact in contact_points:
+            normal_force = contact[9]  # Normal force
+            if abs(normal_force) > impact_threshold:
+                high_impact_force += abs(normal_force) - impact_threshold
+
+        return high_impact_force
 
     def calculate_reward_eq1(self):
         # Tuning params
