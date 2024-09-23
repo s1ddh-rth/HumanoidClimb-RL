@@ -54,28 +54,41 @@ class CustomCallback(BaseCallback):
 
 	def _on_step(self) -> bool:
 		return True
-
+	
 	def _on_rollout_end(self) -> None:
 		self.rollout_count += 1
+		_steps_till_success = []
+		_success = []
 
-		# Collect reward components from all environments
-		reward_infos = self.training_env.get_attr('last_reward_components')
-
-		# Aggregate reward components
-		for reward_info in reward_infos:
-			for key, value in reward_info.items():
-				self.reward_components[key].append(value)
-
-		# Calculate average reward components
-		avg_rewards = {k: sum(v) / len(v) for k, v in self.reward_components.items() if v}
-
-		# Log to wandb
+		# for entry in self.model.ep_info_buffer:
+		# 	_success.append(entry['is_success'])
+		#
+		# success_rate = np.mean(_success) if len(_success) > 0 else None
+		#
+		# self.logger.record("climb/success_rate", success_rate)
 		self.logger.record("climb/rollout_count", self.rollout_count)
-		for key, value in avg_rewards.items():
-			self.logger.record(f"climb/{key}", value)
 
-		# Reset reward components
-		self.reward_components = {k: [] for k in self.reward_components}
+	# def _on_rollout_end(self) -> None:
+	# 	self.rollout_count += 1
+
+	# 	# Collect reward components from all environments
+	# 	reward_infos = self.training_env.get_attr('last_reward_components')
+
+	# 	# Aggregate reward components
+	# 	for reward_info in reward_infos:
+	# 		for key, value in reward_info.items():
+	# 			self.reward_components[key].append(value)
+
+	# 	# Calculate average reward components
+	# 	avg_rewards = {k: sum(v) / len(v) for k, v in self.reward_components.items() if v}
+
+	# 	# Log to wandb
+	# 	self.logger.record("climb/rollout_count", self.rollout_count)
+	# 	for key, value in avg_rewards.items():
+	# 		self.logger.record(f"climb/{key}", value)
+
+	# 	# Reset reward components
+	# 	self.reward_components = {k: [] for k in self.reward_components}
 
 		# for entry in self.model.ep_info_buffer:
 		# 	_success.append(entry['is_success'])

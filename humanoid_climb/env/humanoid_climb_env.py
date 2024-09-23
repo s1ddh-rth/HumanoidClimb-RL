@@ -170,18 +170,6 @@ class HumanoidClimbEnv(gym.Env):
         self.last_floor_reward = floor_reward
         self.last_total_reward = total_reward
 
-        current_time = time.time()
-        if current_time - self.last_print_time >= 10:
-            print(f"Rewards after {current_time - self.last_print_time:.2f} seconds:")
-            print(f"Distance Reward: {distance_reward:.2f}")
-            print(f"Velocity Reward: {velocity_reward:.2f}")
-            print(f"Slouch Reward: {slouch_reward:.2f}")
-            print(f"Wall Penalty: {wall_penalty:.2f}")
-            print(f"Floor Reward: {floor_reward:.2f}")
-            print(f"Total Reward: {total_reward:.2f}")
-            print("--------------------")
-            self.last_print_time = current_time
-
         return total_reward
     
     def get_reward_components(self):
