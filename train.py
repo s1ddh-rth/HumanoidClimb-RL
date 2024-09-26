@@ -49,7 +49,8 @@ class CustomCallback(BaseCallback):
             "slouch_reward": [],
             "wall_penalty": [],
             "floor_reward": [],
-            "total_reward": []
+			"stance_reward": [],
+			"total_reward": []
         }
 
 	def _on_step(self) -> bool:
@@ -137,7 +138,7 @@ def train(env_name, sb3_algo, workers, path_to_model=None):
 
 	if sb3_algo == 'PPO':
 		if path_to_model is None:
-			model = sb.PPO('MlpPolicy', vec_env, verbose=1, device=DEVICE, tensorboard_log=log_dir, batch_size=1024, ent_coef=0.01, learning_rate=1e-4, n_steps=4096)
+			model = sb.PPO('MlpPolicy', vec_env, verbose=1, device=DEVICE, tensorboard_log=log_dir, batch_size=2048)
 		else:
 			model = sb.PPO.load(path_to_model, env=vec_env)
 	elif sb3_algo == 'SAC':

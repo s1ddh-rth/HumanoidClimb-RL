@@ -13,7 +13,7 @@ import humanoid_climb.stances as stances
 
 
 stances.set_root_path("./humanoid_climb")
-stance = stances.STANCE_4
+stance = stances.STANCE_2
 
 
 # env = gym.make('TorsoClimb-v0', render_mode='human', max_ep_steps=600, reward=Reward.NEGATIVE_DIST, motion_path=MOTION, state_file=STATEFILE)
@@ -38,12 +38,27 @@ action[-3] = 1
 action[-2] = 1
 action[-1] = 1
 
+def get_wall_contact_forces(env):
+    # Use the public method to get contact points
+    contact_points = p.getContactPoints(bodyA=env.robot.robot, bodyB=env.wall)
+    normal_forces = [contact[9] for contact in contact_points]
+    return normal_forces
+
+
 while True:
 
     if not pause:
         obs, reward, done, truncated, info = env.step(action)
         score += reward
         step += 1
+
+         # Get and print wall contact forces
+        forces = get_wall_contact_forces(env)
+        if forces:
+            avg_force = sum(forces) / len(forces)
+            max_force = max(forces)
+            print(f"Step {step} - Avg Normal Force: {avg_force:.2f}, Max Normal Force: {max_force:.2f}")
+
 
     # Reset on backspace
     keys = p.getKeyboardEvents()

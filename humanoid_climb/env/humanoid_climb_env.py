@@ -143,6 +143,10 @@ class HumanoidClimbEnv(gym.Env):
         current_dist_away = self.get_distance_from_desired_stance()
         distance_reward = np.clip(-1 * np.sum(current_dist_away), -2, float('inf'))
 
+        # Update best distance to stance
+        if np.sum(current_dist_away) < np.sum(self.best_dist_to_stance):
+            self.best_dist_to_stance = current_dist_away.copy()
+
         # Vertical velocity reward
         torso_velocity = self.robot.speed()[2]  # considering Vertical component only
         velocity_reward = max(0, torso_velocity) * 4  # Positive reward for upward movement
@@ -161,13 +165,17 @@ class HumanoidClimbEnv(gym.Env):
 
         floor_reward = 0.1 if not self.is_on_floor() else -5
 
-        total_reward = distance_reward + velocity_reward + slouch_reward - wall_penalty + floor_reward
+        # Heavy positive reward for reaching desired stance
+        stance_reward = 1000 if self.current_stance == self.desired_stance else 0
+
+        total_reward = distance_reward + velocity_reward + slouch_reward - wall_penalty + floor_reward + stance_reward
 
         self.last_distance_reward = distance_reward
         self.last_velocity_reward = velocity_reward
         self.last_slouch_reward = slouch_reward
         self.last_wall_penalty = wall_penalty
         self.last_floor_reward = floor_reward
+        self.last_stance_reward = stance_reward
         self.last_total_reward = total_reward
 
         self.last_reward_components = {
@@ -176,6 +184,7 @@ class HumanoidClimbEnv(gym.Env):
             "slouch_reward": slouch_reward,
             "wall_penalty": wall_penalty,
             "floor_reward": floor_reward,
+            "stance_reward": stance_reward,
             "total_reward": total_reward
         }
         return total_reward
@@ -188,7 +197,7 @@ class HumanoidClimbEnv(gym.Env):
     def get_wall_impact_force(self):
         contact_points = self._p.getContactPoints(bodyA=self.robot.robot, bodyB=self.wall)
         high_impact_force = 0
-        impact_threshold = 50  # Adjust this value based on testing
+        impact_threshold = 100  # Adjust this value based on testing
 
         for contact in contact_points:
             normal_force = contact[9]  # Normal force
