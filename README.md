@@ -103,10 +103,8 @@ We welcome contributions to the Humanoid Climb project. To contribute:
 
 ## WORK IN PROGRESS
 
-![Humanoid climbing the holds](https://github.com/dylanjoao/HumanoidClimbEnv/assets/64186394/d154f391-c658-49c2-9898-b1dba4da93fe)
-
-
-![Humanoid trying dyno movement in the one stance transition](https://drive.google.com/file/d/18ITYeknRvYPDnZW0PLlvtKbo2EeDTHAG/view?usp=sharing)
+Humanoid trying a one stance transition (dyno movement)
+https://drive.google.com/file/d/18ITYeknRvYPDnZW0PLlvtKbo2EeDTHAG/view?usp=sharing
 
 ## Parent repo
 
