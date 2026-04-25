@@ -9,9 +9,10 @@ config = ClimbingConfig('./config.json')
 env = gym.make('HumanoidClimb-v0',
                render_mode='human',
                max_ep_steps=10000000,
+               state_file="./humanoid_climb/states/state_10_9_2_1.npz",
                config=config)
 obs, info = env.reset()
-model = PPO.load("./humanoid_climb/models/1_10_9_n_n.zip", env=env)
+model = PPO.load("./humanoid_climb/models/4_18_18_n_n.zip", env=env)
 # model = PPO.load("./humanoid_climb/models/2_10_9_2_n.zip", env=env)
 # model = PPO.load("./humanoid_climb/models/3_10_9_2_1.zip", env=env)
 # model = PPO.load("./humanoid_climb/models/4_10_13_2_1.zip", env=env)

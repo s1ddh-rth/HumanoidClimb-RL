@@ -103,6 +103,7 @@ class HumanoidClimbEnv(gym.Env):
         self.desired_stance = self.motion_path[0]
         self.best_dist_to_stance = self.get_distance_from_desired_stance()
         self.prevheight = self.get_com_height()
+        self.previous_height = self.prevheight
         
         ob = self._get_obs()
         info = self._get_info()
@@ -128,46 +129,72 @@ class HumanoidClimbEnv(gym.Env):
 
         return reward
     
-    def calculate_advanced_dyno_reward(self):
-        reward = 0
+    # def calculate_advanced_dyno_reward(self):
+    #     reward = 0
 
-        # Base stance reward (slouching)
-        torso_position = self.climber.robot_body.current_position()
-        torso_orientation = self.climber.robot_body.current_orientation()
-        wall_distance = abs(torso_position[1] - self.wall.body.get_position()[1])
-        slouch_angle = p.getEulerFromQuaternion(torso_orientation)[1]  # pitch angle
-        reward -= (wall_distance + abs(slouch_angle - np.pi/6))  # Negative reward to minimize
+    #     # Base stance reward (slouching)
+    #     torso_position = self.climber.robot_body.current_position()
+    #     torso_orientation = self.climber.robot_body.current_orientation()
+    #     wall_distance = abs(torso_position[1] - self.wall.body.get_position()[1])
+    #     slouch_angle = p.getEulerFromQuaternion(torso_orientation)[1]  # pitch angle
+    #     reward -= (wall_distance + abs(slouch_angle - np.pi/6))  # Negative reward to minimize
 
+
+    #     # Vertical velocity reward
+    #     torso_velocity = self.climber.robot_body.speed()
+    #     reward -= max(0, 5 - torso_velocity[2]) * 2  # Negative reward for lack of upward velocity
+
+
+    #     # Drastic upward motion reward
+    #     prev_height = self.previous_height if hasattr(self, 'previous_height') else self.climber.robot_body.current_position()[2]
+    #     current_height = self.climber.robot_body.current_position()[2]
+    #     height_change = current_height - prev_height
+    #     self.previous_height = current_height
+    #     reward -= max(0, 0.1 - height_change) * 10  # Negative reward for lack of upward movement
+
+    #     # Distance to target reward
+    #     current_dist = self.get_distance_from_desired_stance()
+    #     reward -= np.sum(current_dist)
+
+    #     # Body orientation reward
+    #     orientation = self.climber.get_orientation()
+    #     reward -= abs(orientation[2] - 1)  # Negative reward for non-upright orientation
+
+    #     # Large negative reward for not reaching new stance
+    #     if not self.check_reached_stance():
+    #         reward -= 100
+
+    #     # Penalty for falling
+    #     if self.is_on_floor():
+    #         reward -= 100
+
+    #     return reward
+    
+    def calculate_improved_reward(self):
+        # Base reward from negative distance
+        current_dist_away = self.get_distance_from_desired_stance()
+        reward = np.clip(-1 * np.sum(current_dist_away), -2, float('inf'))
 
         # Vertical velocity reward
-        torso_velocity = self.climber.robot_body.speed()
-        reward -= max(0, 5 - torso_velocity[2]) * 2  # Negative reward for lack of upward velocity
+        torso_velocity = self.climber.speed()[2]  # considering Vertical component only
+        reward += max(0, torso_velocity) * 2  # Positive reward for upward movement
 
+        # Base stance reward (slouching)
+        torso_orientation = self.climber.get_orientation()
+        slouch_angle = torso_orientation[1]  # pitch angle
+        target_slouch = -np.pi/6  # Negative angle for backward lean
 
-        # Drastic upward motion reward
-        prev_height = self.previous_height if hasattr(self, 'previous_height') else self.climber.robot_body.current_position()[2]
-        current_height = self.climber.robot_body.current_position()[2]
-        height_change = current_height - prev_height
-        self.previous_height = current_height
-        reward -= max(0, 0.1 - height_change) * 10  # Negative reward for lack of upward movement
+        # reward += max(0, np.pi/6 - abs(slouch_angle)) * 0.5  # Reward for maintaining slight slouch
+        reward += max(0, abs(target_slouch) - abs(slouch_angle - target_slouch)) * 0.5
 
-        # Distance to target reward
-        current_dist = self.get_distance_from_desired_stance()
-        reward -= np.sum(current_dist)
+        if not self.is_on_floor():
+            reward += 0.1
 
-        # Body orientation reward
-        orientation = self.climber.get_orientation()
-        reward -= abs(orientation[2] - 1)  # Negative reward for non-upright orientation
-
-        # Large negative reward for not reaching new stance
-        if not self.check_reached_stance():
-            reward -= 100
-
-        # Penalty for falling
         if self.is_on_floor():
-            reward -= 100
+            reward -= 5
 
         return reward
+
 
     def calculate_reward_eq1(self):
         # Tuning params

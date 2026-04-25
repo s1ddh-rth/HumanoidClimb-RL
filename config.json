@@ -118,7 +118,7 @@
     },
     "hold_18": {
       "asset": "asset_hold",
-      "position": [0.4, 0.3, 3.05],
+      "position": [0.4, 0, 2.9],
       "orientation": [0, 0, 0, 1]
     }
   },

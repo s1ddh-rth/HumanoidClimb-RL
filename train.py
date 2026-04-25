@@ -70,11 +70,11 @@ def make_env(env_id: str, rank: int, seed: int = 0, max_steps: int = 1000, stanc
 def train(env_name, sb3_algo, workers, path_to_model=None):
 	config = {
 		"policy_type": "MlpPolicy",
-		"total_timesteps": 50000000,
+		"total_timesteps": 1000000,
 		"env_name": env_name,
 	}
 	run = wandb.init(
-		project="HumanoidClimb-2",
+		project="HumanoidClimb-v3",
 		config=config,
 		sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
 		monitor_gym=False,  # auto-upload the videos of agents playing the game
@@ -84,7 +84,7 @@ def train(env_name, sb3_algo, workers, path_to_model=None):
 
 	max_ep_steps = 600
 	stances.set_root_path("./humanoid_climb")
-	stance = stances.STANCE_14_1
+	stance = stances.STANCE_1
 	vec_env = SubprocVecEnv([make_env(env_name, i, max_steps=max_ep_steps, stance=stance) for i in range(workers)], start_method="spawn")
 
 	model = None
@@ -95,7 +95,7 @@ def train(env_name, sb3_algo, workers, path_to_model=None):
 
 	if sb3_algo == 'PPO':
 		if path_to_model is None:
-			model = sb.PPO('MlpPolicy', vec_env, verbose=1, device=DEVICE, tensorboard_log=log_dir, batch_size=2048)
+			model = sb.PPO('MlpPolicy', vec_env, verbose=1, device=DEVICE, tensorboard_log=log_dir, batch_size=64)
 		else:
 			model = sb.PPO.load(path_to_model, env=vec_env)
 	elif sb3_algo == 'SAC':

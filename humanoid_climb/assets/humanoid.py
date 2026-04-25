@@ -158,9 +158,18 @@ class Humanoid:
         rand = random.randint(0, upper - 1)
         state = self.state_file['arr_0'][rand]
         self.set_state(state)
+    def speed(self):
+        linear_velocity, _ = self._p.getBaseVelocity(self.robot)
+        return linear_velocity
+    def get_orientation(self):
+        _, orientation = self._p.getBasePositionAndOrientation(self.robot)
+        return p.getEulerFromQuaternion(orientation)
 
 
 def normalized(a, axis=-1, order=2):
     l2 = np.atleast_1d(np.linalg.norm(a, order, axis))
     l2[l2 == 0] = 1
     return a / np.expand_dims(l2, axis)
+
+
+
