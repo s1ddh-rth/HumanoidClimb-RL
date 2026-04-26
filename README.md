@@ -22,8 +22,8 @@ Humanoid Climb is an advanced reinforcement learning project aimed at teaching a
 - Custom OpenAI Gym environment (`HumanoidClimbEnv`) for simulating humanoid climbing
 - Integration with Stable Baselines 3 for state-of-the-art reinforcement learning algorithms
 - Support for multiple RL algorithms (PPO, SAC)
-- Customizable climbing scenarios with configurable target positions (a separate config file is being worked upon)
-- Advanced reward shaping for efficient learning
+- Customizable climbing scenarios via `config.json` (`ClimbingConfig`): hold positions, stance path, joint forces, collision groups
+- Multiple reward functions available; active one is selected in `HumanoidClimbEnv.step()`
 - Integration with Weights & Biases for comprehensive experiment tracking
 
 ## Installation
@@ -68,31 +68,19 @@ python train.py HumanoidClimb-v0 PPO -s models/best_model.zip
 
 ## Environment Details
 
-The HumanoidClimbEnv class in humanoid_climb_env.py defines the custom Gym environment:
+The `HumanoidClimbEnv` class in `humanoid_climb/env/humanoid_climb_env.py` defines the custom Gym environment.
 
-Action Space: 21-dimensional vector (gym.spaces.Box).
+**Observation:** 306-d `Box` (per-joint world pose / velocity, per-effector target distance, current/desired stance, contact flags).
 
-Reward Function: Combines multiple components-
-- Distance to target holds
-- Vertical velocity
-- Body orientation (slouch angle)
-- Wall impact penalty
-- Floor contact penalty
-- Stance completion bonus
+**Action space:** selectable via the `discrete_grasp` kwarg.
+- `discrete_grasp=False` (default): legacy `Box(-1, 1, (21,))` — 17 joint torques + 4 thresholded grasp signals.
+- `discrete_grasp=True`: `MultiDiscrete([21]*17 + [2]*4)` — 17 binned torques (0.1 step) + 4 binary grasp dims with their own categorical heads. This was added to fix the dissertation-era problem where PPO never learned grasp timing because the grasp dim shared one Gaussian with the torque dims (see `CLAUDE.md`).
+
+**Reward shaping:** the env exposes several reward functions; the active one is the call site inside `step()`. Currently `calculate_reward_negative_distance` — sum-of-distances to target holds + a floor-contact penalty. Alternate static methods (`calculate_improved_reward`, `calculate_reward_eq1`) add vertical velocity, slouch posture, and stance-completion bonuses, and are referenced (with the corresponding equation numbers) in the dissertation. Optional event-based grasp shaping is available via the `grasp_reward=True` kwarg, which adds attach / wrong-attach / waste / premature-release credit on the grasp dim. A `grasp_persist_steps=N` kwarg locks each grasp dim's binary intent for N steps after a flip (frameskip-style).
 
 ## Results
 
-The Humanoid was able to show signs of learning a dyno movement, though no complete transition was achieved.
-
-Detailed metrics logged during training:
-
-- Distance reward
-- Velocity reward
-- Slouch reward
-- Wall impact penalty
-- Floor contact reward
-- Stance completion reward
-- Total reward
+Across the five experimental runs in the dissertation, the agent showed signs of learning to leap (rising mean reward, longer episodes) but the success rate for a complete dyno transition remained ≈0%. The recurring failure mode in the most refined run was the agent briefly touching the floor mid-leap to bounce off and gain upward momentum — see `CLAUDE.md` for the per-run breakdown.
 
 ## Visualization
 
