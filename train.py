@@ -54,11 +54,15 @@ class CustomCallback(BaseCallback):
 		# self.logger.record("climb/success_rate", success_rate)
 		self.logger.record("climb/rollout_count", self.rollout_count)
 
-def make_env(env_id: str, rank: int, seed: int = 0, max_steps: int = 1000, stance: stances.Stance = stances.STANCE_NONE) -> gym.Env:
+def make_env(env_id: str, rank: int, seed: int = 0, max_steps: int = 1000, stance: stances.Stance = stances.STANCE_NONE,
+             discrete_grasp: bool = True, grasp_reward: bool = True, grasp_persist_steps: int = 10) -> gym.Env:
     def _init():
-        
+
         config = ClimbingConfig('./config.json')
-        env = gym.make(env_id, config=config, render_mode=None, max_ep_steps=max_steps)
+        env = gym.make(env_id, config=config, render_mode=None, max_ep_steps=max_steps,
+                       discrete_grasp=discrete_grasp,
+                       grasp_reward=grasp_reward,
+                       grasp_persist_steps=grasp_persist_steps)
         m_env = Monitor(env)
         m_env.reset(seed=seed + rank)
         return m_env
