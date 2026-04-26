@@ -13,7 +13,8 @@ class HumanoidClimbEnv(gym.Env):
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 60}
 
     def __init__(self, config, render_mode: Optional[str] = None, max_ep_steps: Optional[int] = 602, state_file: Optional[str] = None,
-                 discrete_grasp: bool = False, n_torque_bins: int = 21):
+                 discrete_grasp: bool = False, n_torque_bins: int = 21,
+                 grasp_reward: bool = False):
 
         self.config = config
 
@@ -35,6 +36,13 @@ class HumanoidClimbEnv(gym.Env):
 
         self.discrete_grasp = discrete_grasp
         self.n_torque_bins = n_torque_bins
+
+        self.grasp_reward = grasp_reward
+        self.grasp_attach_bonus = 5.0
+        self.grasp_wrong_attach_penalty = -1.0
+        self.grasp_waste_penalty = -0.05
+        self.grasp_premature_release_penalty = -20.0
+        self._prev_attached = [-1, -1, -1, -1]
         if self.discrete_grasp:
             # 17 torque dims (n_torque_bins levels each) + 4 binary grasp dims.
             # Each dim has its own categorical head, so the grasp gradient is
@@ -90,11 +98,40 @@ class HumanoidClimbEnv(gym.Env):
         grasps = action[17:21].astype(np.float32) * 2.0 - 1.0
         return np.concatenate([torques, grasps]).astype(np.float32)
 
+    def _grasp_event_reward(self, prev_attached, decoded_grasps):
+        if not self.grasp_reward:
+            return 0.0
+        overrides = self.action_override[self.desired_stance_index]
+        new_attached = self.climber.effector_attached_to
+        v_z = self.climber.speed()[2]
+        n_attached_after = sum(1 for a in new_attached if a != -1)
+        bonus = 0.0
+        for i in range(4):
+            # Only credit transitions for effectors the policy actually controls.
+            if overrides[i] is not None:
+                continue
+            was = prev_attached[i]
+            now = new_attached[i]
+            grasp_on = decoded_grasps[i] > 0
+            new_attach = (was == -1 and now != -1)
+            new_release = (was != -1 and now == -1)
+            if new_attach:
+                if self.desired_stance[i] != -1 and now == self.desired_stance[i]:
+                    bonus += self.grasp_attach_bonus
+                else:
+                    bonus += self.grasp_wrong_attach_penalty
+            elif grasp_on and now == -1:
+                bonus += self.grasp_waste_penalty
+            if new_release and v_z < 0 and n_attached_after < 2:
+                bonus += self.grasp_premature_release_penalty
+        return bonus
+
     def step(self, action):
 
         self._p.stepSimulation()
         self.steps += 1
 
+        prev_attached = list(self.climber.effector_attached_to)
         decoded_action = self._decode_action(action)
         self.climber.apply_action(decoded_action, self.action_override[self.desired_stance_index])
         self.update_stance()
@@ -104,6 +141,7 @@ class HumanoidClimbEnv(gym.Env):
 
         # reward = self.calculate_reward_eq1()
         reward = self.calculate_reward_negative_distance()
+        reward += self._grasp_event_reward(prev_attached, decoded_action[17:21])
         reached = self.check_reached_stance()
 
         terminated = self.terminate_check()
