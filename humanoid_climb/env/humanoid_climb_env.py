@@ -12,7 +12,9 @@ from humanoid_climb.assets.asset import Asset
 class HumanoidClimbEnv(gym.Env):
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 60}
 
-    def __init__(self, config, render_mode: Optional[str] = None, max_ep_steps: Optional[int] = 602, state_file: Optional[str] = None):
+    def __init__(self, config, render_mode: Optional[str] = None, max_ep_steps: Optional[int] = 602, state_file: Optional[str] = None,
+                 discrete_grasp: bool = False, n_torque_bins: int = 21,
+                 grasp_reward: bool = False, grasp_persist_steps: int = 0):
 
         self.config = config
 
@@ -32,8 +34,28 @@ class HumanoidClimbEnv(gym.Env):
         else:
             self._p = BulletClient(p.DIRECT)
 
-        # 17 joint actions + 4 grasp actions
-        self.action_space = gym.spaces.Box(-1, 1, (21,), np.float32)
+        self.discrete_grasp = discrete_grasp
+        self.n_torque_bins = n_torque_bins
+
+        self.grasp_reward = grasp_reward
+        self.grasp_attach_bonus = 5.0
+        self.grasp_wrong_attach_penalty = -1.0
+        self.grasp_waste_penalty = -0.05
+        self.grasp_premature_release_penalty = -20.0
+        self._prev_attached = [-1, -1, -1, -1]
+
+        self.grasp_persist_steps = grasp_persist_steps
+        self._grasp_lock_remaining = [0, 0, 0, 0]
+        self._last_grasp_binary = [0, 0, 0, 0]
+        if self.discrete_grasp:
+            # 17 torque dims (n_torque_bins levels each) + 4 binary grasp dims.
+            # Each dim has its own categorical head, so the grasp gradient is
+            # independent of the torque gradient — the structural fix for the
+            # "policy never learned grasp timing" failure mode.
+            self.action_space = gym.spaces.MultiDiscrete([n_torque_bins] * 17 + [2] * 4)
+        else:
+            # Legacy: 17 joint torques + 4 thresholded grasp signals, all in one Box.
+            self.action_space = gym.spaces.Box(-1, 1, (21,), np.float32)
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(306,), dtype=np.float32)
 
         self.np_random, _ = gym.utils.seeding.np_random()
@@ -71,12 +93,68 @@ class HumanoidClimbEnv(gym.Env):
         total_mass = sum(self._p.getDynamicsInfo(self.climber.robot, part.bodyPartIndex)[0] for part in parts.values())
         weighted_height = sum(self._p.getDynamicsInfo(self.climber.robot, part.bodyPartIndex)[0] * part.get_position()[2] for part in parts.values())
         return weighted_height / total_mass
+    def _decode_action(self, action):
+        if self.discrete_grasp:
+            action = np.asarray(action)
+            torque_indices = action[:17].astype(np.float32)
+            torques = (torque_indices / (self.n_torque_bins - 1)) * 2.0 - 1.0
+            grasps = action[17:21].astype(np.float32) * 2.0 - 1.0
+            decoded = np.concatenate([torques, grasps]).astype(np.float32)
+        else:
+            decoded = np.asarray(action, dtype=np.float32)
+
+        if self.grasp_persist_steps > 0:
+            # Sticky grasp: once the binary intent (sign) flips, lock that value
+            # for grasp_persist_steps gym steps so the decision actually has time
+            # to affect the world before the policy can flip it again.
+            for i in range(4):
+                intent_binary = 1 if decoded[17 + i] > 0 else 0
+                if self._grasp_lock_remaining[i] > 0:
+                    intent_binary = self._last_grasp_binary[i]
+                    self._grasp_lock_remaining[i] -= 1
+                elif intent_binary != self._last_grasp_binary[i]:
+                    self._last_grasp_binary[i] = intent_binary
+                    self._grasp_lock_remaining[i] = self.grasp_persist_steps - 1
+                decoded[17 + i] = 1.0 if intent_binary == 1 else -1.0
+
+        return decoded
+
+    def _grasp_event_reward(self, prev_attached, decoded_grasps):
+        if not self.grasp_reward:
+            return 0.0
+        overrides = self.action_override[self.desired_stance_index]
+        new_attached = self.climber.effector_attached_to
+        v_z = self.climber.speed()[2]
+        n_attached_after = sum(1 for a in new_attached if a != -1)
+        bonus = 0.0
+        for i in range(4):
+            # Only credit transitions for effectors the policy actually controls.
+            if overrides[i] is not None:
+                continue
+            was = prev_attached[i]
+            now = new_attached[i]
+            grasp_on = decoded_grasps[i] > 0
+            new_attach = (was == -1 and now != -1)
+            new_release = (was != -1 and now == -1)
+            if new_attach:
+                if self.desired_stance[i] != -1 and now == self.desired_stance[i]:
+                    bonus += self.grasp_attach_bonus
+                else:
+                    bonus += self.grasp_wrong_attach_penalty
+            elif grasp_on and now == -1:
+                bonus += self.grasp_waste_penalty
+            if new_release and v_z < 0 and n_attached_after < 2:
+                bonus += self.grasp_premature_release_penalty
+        return bonus
+
     def step(self, action):
 
         self._p.stepSimulation()
         self.steps += 1
 
-        self.climber.apply_action(action, self.action_override[self.desired_stance_index])
+        prev_attached = list(self.climber.effector_attached_to)
+        decoded_action = self._decode_action(action)
+        self.climber.apply_action(decoded_action, self.action_override[self.desired_stance_index])
         self.update_stance()
 
         ob = self._get_obs()
@@ -84,6 +162,7 @@ class HumanoidClimbEnv(gym.Env):
 
         # reward = self.calculate_reward_eq1()
         reward = self.calculate_reward_negative_distance()
+        reward += self._grasp_event_reward(prev_attached, decoded_action[17:21])
         reached = self.check_reached_stance()
 
         terminated = self.terminate_check()
@@ -98,6 +177,8 @@ class HumanoidClimbEnv(gym.Env):
         self.climber.exclude_targets = self.motion_exclude_targets[0]
         # if self.init_from_state: self.robot.initialise_from_state()
         self.steps = 0
+        self._grasp_lock_remaining = [0, 0, 0, 0]
+        self._last_grasp_binary = [0, 0, 0, 0]
         self.current_stance = [-1, -1, -1, -1] # TODO
         self.desired_stance_index = 0
         self.desired_stance = self.motion_path[0]
