@@ -12,7 +12,8 @@ from humanoid_climb.assets.asset import Asset
 class HumanoidClimbEnv(gym.Env):
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 60}
 
-    def __init__(self, config, render_mode: Optional[str] = None, max_ep_steps: Optional[int] = 602, state_file: Optional[str] = None):
+    def __init__(self, config, render_mode: Optional[str] = None, max_ep_steps: Optional[int] = 602, state_file: Optional[str] = None,
+                 discrete_grasp: bool = False, n_torque_bins: int = 21):
 
         self.config = config
 
@@ -32,8 +33,17 @@ class HumanoidClimbEnv(gym.Env):
         else:
             self._p = BulletClient(p.DIRECT)
 
-        # 17 joint actions + 4 grasp actions
-        self.action_space = gym.spaces.Box(-1, 1, (21,), np.float32)
+        self.discrete_grasp = discrete_grasp
+        self.n_torque_bins = n_torque_bins
+        if self.discrete_grasp:
+            # 17 torque dims (n_torque_bins levels each) + 4 binary grasp dims.
+            # Each dim has its own categorical head, so the grasp gradient is
+            # independent of the torque gradient — the structural fix for the
+            # "policy never learned grasp timing" failure mode.
+            self.action_space = gym.spaces.MultiDiscrete([n_torque_bins] * 17 + [2] * 4)
+        else:
+            # Legacy: 17 joint torques + 4 thresholded grasp signals, all in one Box.
+            self.action_space = gym.spaces.Box(-1, 1, (21,), np.float32)
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(306,), dtype=np.float32)
 
         self.np_random, _ = gym.utils.seeding.np_random()
@@ -71,12 +81,22 @@ class HumanoidClimbEnv(gym.Env):
         total_mass = sum(self._p.getDynamicsInfo(self.climber.robot, part.bodyPartIndex)[0] for part in parts.values())
         weighted_height = sum(self._p.getDynamicsInfo(self.climber.robot, part.bodyPartIndex)[0] * part.get_position()[2] for part in parts.values())
         return weighted_height / total_mass
+    def _decode_action(self, action):
+        if not self.discrete_grasp:
+            return action
+        action = np.asarray(action)
+        torque_indices = action[:17].astype(np.float32)
+        torques = (torque_indices / (self.n_torque_bins - 1)) * 2.0 - 1.0
+        grasps = action[17:21].astype(np.float32) * 2.0 - 1.0
+        return np.concatenate([torques, grasps]).astype(np.float32)
+
     def step(self, action):
 
         self._p.stepSimulation()
         self.steps += 1
 
-        self.climber.apply_action(action, self.action_override[self.desired_stance_index])
+        decoded_action = self._decode_action(action)
+        self.climber.apply_action(decoded_action, self.action_override[self.desired_stance_index])
         self.update_stance()
 
         ob = self._get_obs()
